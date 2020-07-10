@@ -2,10 +2,10 @@ use super::*;
 
 use crate::equihash_solution::EquihashSolution;
 use crate::merkle_tree::MerkleTreeRootHash;
-use crate::note_commitment_tree::SaplingNoteTreeRootHash;
 use crate::serialization::{
     SerializationError, ZcashDeserialize, ZcashDeserializeInto, ZcashSerialize,
 };
+use crate::treestate::note_commitment_tree::SaplingNoteTreeRootHash;
 use crate::types::LockTime;
 use crate::{sha256d_writer::Sha256dWriter, test::generate};
 
