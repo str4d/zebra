@@ -33,7 +33,7 @@ tracing-subscriber = { version = "0.2.9", features = ["tracing-log"] }
 tracing-error = "0.1.2"
 
 metrics-runtime = "0.13"
-metrics = "0.12"
+metrics = "0.14"
 dirs = "3.0.1"
 
 [dev-dependencies]
