@@ -12,7 +12,7 @@ zebra-chain = { path = "../zebra-chain" }
 
 color-eyre = "0.5"
 dirs = "3.0.1"
-hex = "0.4.2"
+hex = "0.4.3"
 lazy_static = "1.4.0"
 serde = { version = "1", features = ["serde_derive"] }
 sled = "0.34.0"
