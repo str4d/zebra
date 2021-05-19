@@ -16,7 +16,7 @@ dependencies = [
  "once_cell",
  "regex",
  "secrecy",
- "semver",
+ "semver 0.10.0",
  "serde",
  "signal-hook",
  "termcolor",
@@ -1108,6 +1108,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "metrics"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c0a7fa53d812d26e59d2baf7a6f77442041454ab32908eb304447f00f0dd4de"
+dependencies = [
+ "metrics-macros",
+ "proc-macro-hack",
+ "t1ha",
+]
+
+[[package]]
 name = "metrics-core"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1133,6 +1144,20 @@ dependencies = [
  "log",
  "metrics-core",
  "tokio",
+]
+
+[[package]]
+name = "metrics-macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caa72e4a3d157986dd2565c82ecbddcc23941513669a3766b938f6b72eb87f3f"
+dependencies = [
+ "lazy_static",
+ "proc-macro-hack",
+ "proc-macro2 1.0.19",
+ "quote 1.0.7",
+ "regex",
+ "syn 1.0.35",
 ]
 
 [[package]]
@@ -1180,7 +1205,7 @@ dependencies = [
  "atomic-shim",
  "crossbeam-utils",
  "im",
- "metrics",
+ "metrics 0.12.1",
  "metrics-core",
  "metrics-exporter-http",
  "metrics-exporter-log",
@@ -1739,6 +1764,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c691c0e608126e00913e33f0ccf3727d5fc84573623b8d65b2df340b5201783"
 
 [[package]]
+name = "rustc_version"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
+dependencies = [
+ "semver 0.9.0",
+]
+
+[[package]]
 name = "rusty-fork"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1789,6 +1823,15 @@ checksum = "9182278ed645df3477a9c27bfee0621c621aa16f6972635f7f795dae3d81070f"
 dependencies = [
  "serde",
  "zeroize",
+]
+
+[[package]]
+name = "semver"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
+dependencies = [
+ "semver-parser",
 ]
 
 [[package]]
@@ -2058,6 +2101,18 @@ dependencies = [
  "quote 1.0.7",
  "syn 1.0.35",
  "unicode-xid 0.2.1",
+]
+
+[[package]]
+name = "t1ha"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa44aa51ae1a544e2c35a38831ba54ae40591f21384816f531b84f3e984b9ccc"
+dependencies = [
+ "cfg-if",
+ "lazy_static",
+ "num-traits",
+ "rustc_version",
 ]
 
 [[package]]
@@ -2661,7 +2716,7 @@ dependencies = [
  "color-eyre",
  "futures",
  "futures-util",
- "metrics",
+ "metrics 0.16.0",
  "rand 0.7.3",
  "redjubjub",
  "spandoc",
@@ -2688,7 +2743,7 @@ dependencies = [
  "futures",
  "hex",
  "indexmap",
- "metrics",
+ "metrics 0.16.0",
  "pin-project",
  "proptest",
  "proptest-derive",
@@ -2778,7 +2833,7 @@ dependencies = [
  "futures",
  "gumdrop",
  "hyper",
- "metrics",
+ "metrics 0.16.0",
  "metrics-runtime",
  "once_cell",
  "rand 0.7.3",
