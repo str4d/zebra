@@ -17,7 +17,7 @@ lazy_static = "1.4.0"
 serde = { version = "1", features = ["serde_derive"] }
 sled = "0.34.0"
 
-futures = "0.3.5"
+futures = "0.3.24"
 tower = "0.3.1"
 tracing = "0.1"
 tracing-futures = "0.2"
