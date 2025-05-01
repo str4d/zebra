@@ -18,8 +18,6 @@
 //!    * only performs essential contextual verification of blocks,
 //!      to make sure that block data hasn't been corrupted by
 //!      receiving blocks in the new format
-//!      * TODO: We currently perform full validaton because we don't read from the
-//!        `zcashd` block index.
 //!    * fetches blocks from the best finalized chain from permanent storage,
 //!      in the new format
 
@@ -33,15 +31,18 @@ use color_eyre::eyre::{eyre, Report};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, BufReader},
+    sync::oneshot,
     time::Instant,
 };
-use tower::{Service, ServiceExt};
+use tower::{buffer::Buffer, util::BoxService, Service, ServiceBuilder, ServiceExt};
 
 use zebra_chain::{
     block::{Block, Height},
+    chain_tip::ChainTip,
     parameters::{Magic, Network},
     serialization::ZcashDeserialize,
 };
+use zebra_node_services::mempool;
 
 use crate::{
     components::tokio::{RuntimeRun, TokioComponent},
@@ -52,6 +53,10 @@ use crate::{
 
 /// How often we log info-level progress messages
 const PROGRESS_HEIGHT_INTERVAL: u32 = 5_000;
+
+/// The maximum number of unprocessed messages to buffer for
+/// the state service when migrating from zcashd.
+const STATE_BUFFER_BOUND: usize = 100;
 
 /// Creates a new Zebra state from an existing `zcashd` datadir
 #[derive(Command, Debug, clap::Parser)]
@@ -74,9 +79,13 @@ impl MigrateFromZcashdCmd {
     async fn start(&self) -> Result<(), Report> {
         let app_config = APPLICATION.config();
 
-        self.migrate(app_config.network.network.clone(), app_config.state.clone())
-            .await
-            .map_err(|e| eyre!(e))
+        self.migrate(
+            app_config.network.network.clone(),
+            app_config.state.clone(),
+            app_config.consensus.clone(),
+        )
+        .await
+        .map_err(|e| eyre!(e))
     }
 
     /// Initialize the target state, then copy from the `zcashd` datadir to the target
@@ -84,9 +93,14 @@ impl MigrateFromZcashdCmd {
     async fn migrate(
         &self,
         network: Network,
-        target_config: zebra_state::Config,
+        target_state_config: zebra_state::Config,
+        target_consensus_config: zebra_consensus::Config,
     ) -> Result<(), BoxError> {
-        info!(?target_config, "initializing target state service");
+        info!(
+            ?target_state_config,
+            ?target_consensus_config,
+            "initializing target state service"
+        );
 
         let target_start_time = Instant::now();
         // We're not verifying UTXOs here, so we don't need the maximum checkpoint height.
@@ -95,29 +109,39 @@ impl MigrateFromZcashdCmd {
         // See "What's the fastest way to load data into RocksDB?" in
         // https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
         let (
-            mut target_state,
+            target_state_service,
             _target_read_only_state_service,
-            _target_latest_chain_tip,
+            target_latest_chain_tip,
             _target_chain_tip_change,
-        ) = zebra_state::init(target_config.clone(), &network, Height::MAX, 0).await;
+        ) = zebra_state::init(target_state_config.clone(), &network, Height::MAX, 0).await;
+
+        let target_state = ServiceBuilder::new()
+            .buffer(STATE_BUFFER_BOUND)
+            .service(target_state_service);
+        let (
+            mut block_verifier_router,
+            _tx_verifier,
+            _consensus_task_handles,
+            _max_checkpoint_height,
+        ) = zebra_consensus::router::init(
+            target_consensus_config,
+            &network,
+            target_state,
+            oneshot::channel::<
+                Buffer<BoxService<mempool::Request, mempool::Response, BoxError>, mempool::Request>,
+            >()
+            .1,
+        )
+        .await;
 
         let elapsed = target_start_time.elapsed();
         info!(?elapsed, "finished initializing target state service");
 
         info!("fetching Zebra tip height");
 
-        let initial_target_tip = target_state
-            .ready()
-            .await?
-            .call(zebra_state::Request::Tip)
-            .await?;
-        let initial_target_tip = match initial_target_tip {
-            zebra_state::Response::Tip(target_tip) => target_tip,
-
-            response => Err(format!("unexpected response to Tip request: {response:?}",))?,
-        };
+        let initial_target_tip = target_latest_chain_tip.best_tip_height();
         let min_target_height = initial_target_tip
-            .map(|target_tip| target_tip.0 .0 + 1)
+            .map(|Height(target_tip)| target_tip + 1)
             .unwrap_or(0);
 
         let max_copy_height = self.max_source_height;
@@ -146,88 +170,11 @@ impl MigrateFromZcashdCmd {
                 }
             }
 
-            // Give block to Zebra target for validation and storage.
-            let target_block_commit_hash = target_state
+            block_verifier_router
                 .ready()
                 .await?
-                .call(if height == Height::MIN {
-                    // We can always trust the genesis block from a `zcashd` datadir to be
-                    // the only block with height 0 due to how `zcashd` sideloads it into
-                    // new datadirs.
-                    zebra_state::Request::CommitCheckpointVerifiedBlock(source_block.clone().into())
-                } else {
-                    // We can't use `CommitCheckpointVerifiedBlock` here because `zcashd`
-                    // block files contain the blocks as-received from the network, and
-                    // can include orphaned blocks that aren't within the checkpoint.
-                    // TODO: The only consensus logic we need Zebra to do for historic
-                    // blocks is to find the most-work chain; every other consensus rule
-                    // can be presumed-valid for blocks that end up in the main chain
-                    // (and certainly for blocks that end up in the checkpoint).
-                    zebra_state::Request::CommitSemanticallyVerifiedBlock(
-                        source_block.clone().into(),
-                    )
-                })
+                .call(zebra_consensus::Request::Commit(source_block))
                 .await?;
-            let target_block_commit_hash = match target_block_commit_hash {
-                zebra_state::Response::Committed(target_block_commit_hash) => {
-                    trace!(?target_block_commit_hash, "wrote Zebra block");
-                    target_block_commit_hash
-                }
-                response => Err(format!(
-                    "unexpected response to CommitSemanticallyVerifiedBlock request, height: {}\n \
-                     response: {response:?}",
-                    height.0,
-                ))?,
-            };
-
-            // Read written block from target
-            let target_block = target_state
-                .ready()
-                .await?
-                .call(zebra_state::Request::Block(height.into()))
-                .await?;
-            let target_block = match target_block {
-                zebra_state::Response::Block(Some(target_block)) => {
-                    trace!(?height, %target_block, "read Zebra block");
-                    target_block
-                }
-                zebra_state::Response::Block(None) => Err(format!(
-                    "unexpected missing Zebra block, height: {}",
-                    height.0,
-                ))?,
-
-                response => Err(format!(
-                    "unexpected response to Block request, height: {},\n \
-                     response: {response:?}",
-                    height.0,
-                ))?,
-            };
-            let target_block_data_hash = target_block.hash();
-
-            // Check for data errors
-            //
-            // These checks make sure that Zebra doesn't corrupt the block data
-            // when serializing it.
-            // Zebra currently serializes `Block` structs into bytes while writing,
-            // then deserializes bytes into new `Block` structs when reading.
-            // So these checks are sufficient to detect block data corruption.
-            //
-            // If Zebra starts reusing cached `Block` structs after writing them,
-            // we'll also need to check `Block` structs created from the actual database bytes.
-            if source_block_hash != target_block_commit_hash
-                || source_block_hash != target_block_data_hash
-                || source_block != target_block
-            {
-                Err(format!(
-                    "unexpected mismatch between zcashd and Zebra blocks,\n \
-                     max copy height: {max_copy_height:?},\n \
-                     zcashd hash: {source_block_hash:?},\n \
-                     Zebra commit hash: {target_block_commit_hash:?},\n \
-                     Zebra data hash: {target_block_data_hash:?},\n \
-                     zcashd block: {source_block:?},\n \
-                     Zebra block: {target_block:?}",
-                ))?;
-            }
 
             // Log progress
             if height.0 % PROGRESS_HEIGHT_INTERVAL == 0 {
