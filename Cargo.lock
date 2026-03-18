@@ -1979,9 +1979,9 @@ dependencies = [
 
 [[package]]
 name = "halo2_proofs"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "019561b5f3be60731e7b72f3f7878c5badb4174362d860b03d3cf64cb47f90db"
+checksum = "05713f117155643ce10975e0bee44a274bcda2f4bb5ef29a999ad67c1fa8d4d3"
 dependencies = [
  "blake2b_simd",
  "ff",
@@ -6619,9 +6619,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_primitives"
-version = "0.26.0"
+version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d9e2a8ea37c3b839dc9079747a25789f50cd6a374086e23fc90951e2bcfa37"
+checksum = "3fd9ff256fb298a7e94a73c1adad6c7e0b4b194b902e777ee9f5f2e12c4c4776"
 dependencies = [
  "bip32",
  "blake2b_simd",
@@ -6686,9 +6686,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_protocol"
-version = "0.7.0"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01fb174be84135a00fd3799161835e46f320d0028dd9446fdbd97a8d928456b6"
+checksum = "18b1a337bbc9a7d55ae35d31189f03507dbc7934e9a4bee5c1d5c47464860e48"
 dependencies = [
  "core2",
  "document-features",
@@ -6698,12 +6698,14 @@ dependencies = [
 
 [[package]]
 name = "zcash_script"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bed6cf5b2b4361105d4ea06b2752f0c8af4641756c7fbc9858a80af186c234f"
+checksum = "c6ef9d04e0434a80b62ad06c5a610557be358ef60a98afa5dbc8ecaf19ad72e7"
 dependencies = [
+ "bip32",
  "bitflags 2.9.4",
  "bounded-vec",
+ "hex",
  "ripemd 0.1.3",
  "secp256k1",
  "sha1",
@@ -6722,9 +6724,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_transparent"
-version = "0.6.0"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "539b66f06f6bbdc135b9dc0dba879b0b354b4078d498cd1c4dae28038ec90a33"
+checksum = "5a9b7b4bc11d8bb20833d1b8ab6807f4dca941b381f1129e5bbd72a84e391991"
 dependencies = [
  "bip32",
  "blake2b_simd",
@@ -6733,6 +6735,7 @@ dependencies = [
  "document-features",
  "getset",
  "hex",
+ "nonempty",
  "ripemd 0.1.3",
  "secp256k1",
  "sha2 0.10.9",
